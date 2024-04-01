@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import Optional
 import requests
 import json
+from urllib.parse import urlencode
+
 from .error_codes import error_codes, CODE_SUCCESS, download_station_error_codes, file_station_error_codes
 from .error_codes import auth_error_codes, virtualization_error_codes
 from urllib3 import disable_warnings
@@ -256,11 +258,12 @@ class Authentication:
         if method is None:
             method = 'get'
 
-        url = ('%s%s' % (self._base_url, api_path)) + '?api=' + api_name
+        url_params = {"api": api_name}
         if method == "post":
-            url += f"&_sid={self._sid}"
+            url_params["_sid"] = self._sid
         else:
-            req_param['_sid'] = self._sid
+            req_param["_sid"] = self._sid
+        url = f"{self._base_url}{api_path}?{urlencode(url_params)}"
 
         # Do request and check for error:
         response: Optional[requests.Response] = None
