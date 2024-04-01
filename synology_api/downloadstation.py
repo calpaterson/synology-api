@@ -142,17 +142,38 @@ class DownloadStation(base_api.BaseApi):
 
         return self.request_data(api_name, api_path, req_param, response_json=False).content
 
-    def create_task(self, uri, additional_param: Optional[dict[str, object]] = None) -> dict[str, object] | str:
-        api_name = 'SYNO.DownloadStation' + self.download_st_version + '.Task'
+    def create_task(
+            self,
+            uri_or_file: str | bytes,
+            additional_param: Optional[dict[str, object]] = None,
+            filename: Optional[str] = None
+    ) -> dict[str, object] | str:
+        """Pass either a uri or a BitTorrent metainfo file as bytes as the first argument."""
+        is_file = isinstance(uri_or_file, bytes)
+        api_name = 'SYNO.DownloadStation2.Task'
         info = self.download_list[api_name]
         api_path = info['path']
-        req_param = {'version': info['maxVersion'], 'method': 'create', 'uri': uri}
+        req_param = {'version': info['maxVersion'], 'method': 'create'}
+        if not is_file:
+            req_param["uri"] = uri_or_file
+        else:
+            req_param['file'] = '["torrent"]'
 
         if type(additional_param) is dict:
             for key in additional_param.keys():
                 req_param[key] = additional_param[key]
 
-        return self.request_data(api_name, api_path, req_param)
+        args = dict(
+            api_name=api_name,
+            api_path=api_path,
+            req_param=req_param,
+            method="post" if is_file else "get",
+        )
+        if is_file:
+            filename = filename or "upload.torrent"
+            args["files"] = {"torrent": (filename, uri_or_file)}
+
+        return self.request_data(**args)
 
     def delete_task(self, task_id: str, force: bool = False) -> dict[str, object] | str:
         api_name = 'SYNO.DownloadStation' + self.download_st_version + '.Task'

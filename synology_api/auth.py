@@ -243,8 +243,10 @@ class Authentication:
                      api_path: str,
                      req_param: dict[str, object],
                      method: Optional[str] = None,
-                     response_json: bool = True
+                     response_json: bool = True,
+                     files: Dict[str, [Tuple[str, bytes]]] = None
                      ) -> dict[str, object] | str | list | requests.Response:  # 'post' or 'get'
+        files = files or {}
 
         # Convert all boolean in string in lowercase because Synology API is waiting for "true" or "false"
         for k, v in req_param.items():
@@ -254,9 +256,11 @@ class Authentication:
         if method is None:
             method = 'get'
 
-        req_param['_sid'] = self._sid
-
         url = ('%s%s' % (self._base_url, api_path)) + '?api=' + api_name
+        if method == "post":
+            url += f"&_sid={self._sid}"
+        else:
+            req_param['_sid'] = self._sid
 
         # Do request and check for error:
         response: Optional[requests.Response] = None
@@ -266,7 +270,13 @@ class Authentication:
                 if method == 'get':
                     response = requests.get(url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token})
                 elif method == 'post':
-                    response = requests.post(url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token})
+                    response = requests.post(
+                        url,
+                        req_param,
+                        verify=self._verify,
+                        headers={"X-SYNO-TOKEN":self._syno_token},
+                        files=files
+                    )
             except requests.exceptions.ConnectionError as e:
                 raise SynoConnectionError(error_message=e.args[0])
             except requests.exceptions.HTTPError as e:
@@ -276,7 +286,9 @@ class Authentication:
             if method == 'get':
                 response = requests.get(url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token})
             elif method == 'post':
-                response = requests.post(url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token})
+                response = requests.post(
+                    url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token}, files=files
+                )
 
         # Check for error response from dsm:
         error_code = 0
